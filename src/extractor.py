@@ -1,8 +1,11 @@
+
+# TODO : this extractor should extract feature we need from apk and save as numpy matrix
+#        it may content 4 matrix in KDD paper Hindroid 
+
 import sys
 import os
 from os.path import isfile, join
 from os import listdir
-from termcolor import colored, cprint
 import numpy as np
 import ntpath
 import subprocess
@@ -17,18 +20,19 @@ j2dex_command = "d2j-jar2dex.sh"
 dex2smali_command = "d2j-dex2smali.sh"
 print_command = True
 api_list = []
-total_api = []
+total_package = []
 py_path = os.path.dirname(os.path.abspath(__file__))
 # Read api list from file
-total_api = pickle.load(open(os.path.join(py_path, api_list_path), "rb"))
+total_package = pickle.load(open(os.path.join(py_path, api_list_path), "rb"))
 
 
 cb_flag = False
 invoke_type = ['invoke-static','invoke-virtual','invoke-direct','invoke-super']
-def extract_apk(apk_path):
+# label = 0 ===>not malware  1 =====>malware
+def extract_apk(apk_path, label):
     tmp_path = os.path.join(py_path, tmp_sufix)
     myapk = apk_info(apk_path, tmp_path)
-# TODO : here output path is fix under [this py file]/../tmp/[apkname].out maybe change th     input argv or something
+# TODO : here output path is fix under [this py file]/../tmp/[apkname].out maybe change from input argv or something
     output_path = os.path.join(tmp_path, myapk.base) + ".out"
 #add script of apktools here
     apktool_prefix = "apktool"
@@ -59,11 +63,6 @@ def extract_apk(apk_path):
     command += myapk.output_path
     exec_command(command, print_command)
 
-
-
-
-
-
 # TODO put all info(ex:matrix) and extract function here
 class apk_info:
     def __init__(self, path, tmp_path):
@@ -73,6 +72,11 @@ class apk_info:
         self.direct = os.path.dirname(os.path.abspath(path))
         self.walk = os.path.join(self.output_path, "smali")
         self.exec_dir = os.path.join(self.output_path, "unknown")
+        self.mA = np.zeros(len(total_package), dtype = np.int8)
+        self.mB = np.zeros((len(total_package), len(total_package)), dtype = np.int8)
+        self.mP = np.zeros((len(total_package), len(total_package)), dtype = np.int8)
+        self.mI = np.zeros((len(total_package), len(total_package)), dtype = np.int8)
+
 
 # TODO:exec_command is relate outer function should be handle
     def gen_smali_from_class(self, path, base_name):
@@ -149,8 +153,11 @@ class apk_info:
     def is_api(self, L):
         call_L = L[1:]
         call_L = ".".join(x for x in call_L.split("/")[:-1])
-# TODO: var total_api is global var should be handle after this class being packed
-        if call_L in total_api:
+# TODO: var total_package is global var should be handle after this class being packed
+        if call_L in total_package:
+            ind = total_package.index(call_L)
+            if self.mA[ind] == 0: 
+                self.mA[ind] = 1
             return True
         return False
 
@@ -172,5 +179,5 @@ class apk_info:
 
 if __name__ == "__main__":
     apk_path = sys.argv[1]
-    extract_apk(apk_path)
+    extract_apk(apk_path, 1)
     #main()
